@@ -233,13 +233,6 @@
   </div>
 </div>
 
-<!-- 로그아웃 + 버전 (로그인 후 우상단) -->
-<div style="position:fixed;top:10px;right:12px;z-index:9000;display:flex;align-items:center;gap:8px">
-  <span style="font-size:10px;color:#9CA3AF">build 06-12</span>
-  <button onclick="appLogout&&appLogout()" title="로그아웃"
-    style="padding:6px 12px;border:1px solid #E5E7EB;border-radius:8px;background:#fff;color:#6B7280;font-size:12px;cursor:pointer">로그아웃</button>
-</div>
-
 <div class="header">
   <div class="header-left">
     <div class="header-icon">📊</div>
@@ -251,6 +244,9 @@
     <button class="date-nav-btn" onclick="changeDay(-1)" title="전일">&#8592;</button>
     <input type="date" id="date-input" class="date-input" onchange="onDateChange()">
     <button class="date-nav-btn" onclick="changeDay(1)" title="후일">&#8594;</button>
+    <span style="font-size:10px;color:rgba(255,255,255,0.55);margin-left:8px">build 06-22</span>
+    <button onclick="appLogout&&appLogout()" title="로그아웃"
+      style="margin-left:4px;padding:6px 12px;border:1.5px solid rgba(255,255,255,0.3);border-radius:8px;background:rgba(255,255,255,0.15);color:#fff;font-size:12px;cursor:pointer;flex-shrink:0">로그아웃</button>
   </div>
 </div>
 
