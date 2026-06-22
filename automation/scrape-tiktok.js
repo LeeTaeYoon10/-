@@ -44,43 +44,35 @@ function sumSpend(json) {
   console.log(`[틱톡/${brand}] ${start} ~ ${end} (${dates.length}일) 지출 수집 중... (창이 잠깐 열립니다)`);
 
   const ctx = await chromium.launchPersistentContext(profileDir, { headless: false, locale: 'ko-KR', viewport: { width: 1480, height: 1000 } });
-  const page = ctx.pages()[0] || (await ctx.newPage());
-
-  let latest = null;   // 현재 날짜의 파싱 결과
-  let curDate = null;  // 현재 수집 중인 날짜
-  page.on('response', async (res) => {
-    try {
-      if (!/\/statistics\/op\/campaign\/list/.test(res.url())) return;
-      // 요청 본문의 st/et 가 타겟 날짜와 일치하고, '삭제' 필터가 아닌 응답만 채택
-      const pd = res.request().postData();
-      if (!pd) return;
-      const body = JSON.parse(pd);
-      const cr = body.common_req || body;
-      if (cr.st !== curDate || cr.et !== curDate) return;
-      if (/"delete"/.test(JSON.stringify(cr.filters || []))) return;
-      const json = JSON.parse(await res.text());
-      const r = sumSpend(json);
-      if (r) latest = r;
-    } catch (_) {}
-  });
-
+  // 날짜마다 새 페이지로 격리 수집 (단일 날짜가 안정적인 이유 = 깨끗한 첫 로드.
+  //  과거 날짜는 TikTok이 곧 '오늘' 날짜로 재요청을 쏘므로, 페이지를 재사용하면
+  //  루프에서 응답이 엉켜 누락된다 → 날짜별 새 페이지 + 날짜 스코프 리스너로 해결)
   const result = [];
   try {
     for (const date of dates) {
-      // 이전 날짜의 인플라이트/늦은 응답을 끊기 위해 완전 초기화
-      await page.goto('about:blank').catch(() => {});
-      await page.waitForTimeout(600);
-      latest = null;
-      curDate = date;
+      const p = await ctx.newPage();
+      let latest = null;
+      p.on('response', async (res) => {
+        try {
+          if (!/\/statistics\/op\/campaign\/list/.test(res.url())) return;
+          const pd = res.request().postData();
+          if (!pd) return;
+          const cr = JSON.parse(pd).common_req || JSON.parse(pd);
+          if (cr.st !== date || cr.et !== date) return;          // 그 날짜 응답만(오늘 재요청 무시)
+          if (/"delete"/.test(JSON.stringify(cr.filters || []))) return;
+          const r = sumSpend(JSON.parse(await res.text()));
+          if (r) latest = r;
+        } catch (_) {}
+      });
       const url = `https://ads.tiktok.com/i18n/manage/campaign?aadvid=${aadvid}&st=${date}&et=${date}`;
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      if (/login|passport/i.test(page.url())) throw new Error('세션 만료 — node login-profile.js tiktok 재실행 필요');
-      // 날짜가 일치하는 응답이 올 때까지 대기 (최대 22초)
+      await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      if (/login|passport/i.test(p.url())) { await p.close().catch(() => {}); throw new Error('세션 만료 — node login-profile.js tiktok 재실행 필요'); }
       const t0 = Date.now();
-      while (latest === null && Date.now() - t0 < 22000) await page.waitForTimeout(700);
+      while (latest === null && Date.now() - t0 < 22000) await p.waitForTimeout(700);
       const cost = latest ? latest.sum : 0;
       result.push({ date, cost, ok: latest !== null, overflow: latest?.overflow });
       console.log(`  ${date}  ₩${cost.toLocaleString()}${latest === null ? '  ⚠️(응답없음)' : ''}${latest?.overflow ? '  ⚠️(캠페인>20, 페이지초과)' : ''}`);
+      await p.close().catch(() => {});
     }
   } catch (e) {
     console.error('[수집 오류]', e.message);

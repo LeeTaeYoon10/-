@@ -26,9 +26,12 @@ function dashed(cid) { const s = String(cid); return `${s.slice(0, 3)}-${s.slice
   const profileDir = path.join(__dirname, '.pw-profile', 'google');
   if (!fs.existsSync(profileDir)) { console.error('[오류] 구글 프로필 없음. 먼저: node login-profile.js google'); process.exit(1); }
 
+  // argv[3] 날짜(YYYY-MM-DD) 지정 시 그 날짜를 '맞춤'으로 수집, 없으면 '어제' 프리셋
+  const argDate = (process.argv[3] || '').trim();
   const yday = new Date(); yday.setDate(yday.getDate() - 1);
-  const dateStr = ymd(yday);
-  console.log(`[구글/${brand}] 어제(${dateStr}) 지출 수집 중... (실제 Chrome 창이 열립니다)`);
+  const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(argDate) ? argDate : ymd(yday);
+  const useCustom = /^\d{4}-\d{2}-\d{2}$/.test(argDate) && argDate !== ymd(yday);
+  console.log(`[구글/${brand}] ${useCustom ? '맞춤' : '어제'}(${dateStr}) 지출 수집 중... (실제 Chrome 창이 열립니다)`);
 
   const opts = { headless: false, locale: 'ko-KR', viewport: { width: 1480, height: 1000 }, channel: 'chrome', args: ['--disable-blink-features=AutomationControlled'], ignoreDefaultArgs: ['--enable-automation'] };
   let ctx; try { ctx = await chromium.launchPersistentContext(profileDir, opts); } catch { delete opts.channel; ctx = await chromium.launchPersistentContext(profileDir, opts); }
@@ -51,10 +54,30 @@ function dashed(cid) { const s = String(cid); return `${s.slice(0, 3)}-${s.slice
     }
     await page.waitForTimeout(3000);
 
-    // 날짜 '어제' 설정
+    // 날짜 설정
     await clickFirst(['material-date-range-picker', '[aria-label*="날짜"]']);
     await page.waitForTimeout(2500);
-    await page.locator('material-select-item').filter({ hasText: '어제' }).first().click({ timeout: 5000 }).catch(() => {});
+    if (useCustom) {
+      // '맞춤' → 시작(YYYY. M. D.)·종료(YYYY년 M월 일) 입력칸 둘 다 지정일로 채움
+      const [Y, M, D] = dateStr.split('-').map((x) => parseInt(x, 10));
+      const gfmt = `${Y}. ${M}. ${D}.`;
+      const gfmt2 = `${Y}년 ${M}월 ${D}일`;
+      await clickFirst(['material-select-item:has-text("맞춤")', '[role="option"]:has-text("맞춤")', 'text="맞춤"']);
+      await page.waitForTimeout(1500);
+      const di = page.locator('input[type="text"]');
+      const n = await di.count();
+      for (let i = 0; i < n; i++) {
+        const el = di.nth(i);
+        if (!(await el.isVisible().catch(() => false))) continue;
+        const v = (await el.inputValue().catch(() => '')).trim();
+        let nv = null;
+        if (/^\d{4}\.\s?\d+\.\s?\d+\.$/.test(v)) nv = gfmt;
+        else if (/^\d{4}년\s?\d+월\s?\d+일$/.test(v)) nv = gfmt2;
+        if (nv) { await el.click({ clickCount: 3 }).catch(() => {}); await el.fill(nv).catch(() => {}); await el.press('Enter').catch(() => {}); await page.waitForTimeout(700); }
+      }
+    } else {
+      await page.locator('material-select-item').filter({ hasText: '어제' }).first().click({ timeout: 5000 }).catch(() => {});
+    }
     await page.waitForTimeout(1500);
     await clickFirst(['material-button:has-text("적용")', 'button:has-text("적용")', '[aria-label="적용"]', 'text="적용"']);
     await page.waitForTimeout(7000); // 데이터 갱신

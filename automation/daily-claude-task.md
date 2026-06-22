@@ -4,12 +4,13 @@
 작업 폴더: `C:\Users\ddabl\Desktop\vs코드 연습용\automation`
 모든 명령은 이 폴더에서 실행한다. 아래를 순서대로 수행하라.
 
-## 사전: GFA·스마트스토어 디버그 크롬 확인
-- 포트 9232(GFA), 9231(스마트스토어) 크롬이 떠있는지 `Invoke-WebRequest http://127.0.0.1:9232/json/version` 식으로 확인.
+## 사전: GFA 디버그 크롬 확인
+- 포트 9232(GFA) 크롬이 떠있는지 `Invoke-WebRequest http://127.0.0.1:9232/json/version` 식으로 확인.
 - 없으면 `powershell -File cdp-launch-all.ps1` 로 띄우고 8초 대기.
+- ※ 스마트스토어(네이버)는 **사용자가 직접 수동수집**한다. 무인 작업은 스마트스토어를 건드리지 않는다.
 
 ## 1. GFA 로그인 보장 (캡차는 네가 직접 푼다)
-- `node scrape-gfa.js basetune 9232` 를 실행(인자 날짜 생략 = 어제).
+- `node scrape-gfa.js basetune` 를 실행(날짜·포트 생략 = 어제·9232). ※ 9232를 두 번째 인수로 넣으면 날짜로 파싱되므로 생략.
   - 성공하면 GFA는 끝. 3번으로.
   - "로그인 안 됨"이 나오면 아래를 진행.
 - 환경변수 GFA_ID/GFA_PW는 진입점 스크립트가 이미 설정해 두었다. `node autologin-gfa.js 9232` 실행.
@@ -18,20 +19,18 @@
   - "성공"이 뜰 때까지 캡차를 **최대 3회** 시도(틀리면 새 캡차가 뜨므로 gfa-login.png를 다시 읽고 다시 계산). 3회 실패하면 포기하고 로그에 남겨라.
 
 ## 2. GFA 누락분 수집
-- GFA 로그인 성공 후 `node scrape-gfa.js basetune 9232` 다시 실행해 어제 데이터를 수집.
+- GFA 로그인 성공 후 `node scrape-gfa.js basetune` 다시 실행해 어제 데이터를 수집.
 
-## 3. 스마트스토어 점검 (자동로그인 시도 금지)
-- `node scrape-smartstore.js 9231` 실행(인자 날짜 생략 = 어제).
-  - 성공하면 끝.
-  - "로그인 안 됨"이면 이 계정은 **휴대폰 인증**이 필요해 무인 로그인이 불가능하다. 절대 로그인을 시도하지 말고, 로그에 "스마트스토어 수동로그인 필요"만 남겨라.
+## 3. 스마트스토어 — 건너뛴다
+- 스마트스토어는 사용자가 직접 수동수집하므로 무인 작업은 **아무 것도 하지 않는다**. node scrape-smartstore.js / autologin / cdp 모두 실행 금지.
 
 ## 4. 전체 수집 + 대시보드 반영
-- `powershell -File run-all.ps1` 실행(어제 날짜 자동). 카페24·쿠팡·메타·틱톡·구글 + 로그인된 GFA·스마트 수집 + 대시보드 빌드 + git push까지 한 번에 수행된다.
+- `powershell -File run-all.ps1` 실행(어제 날짜 자동). 카페24·쿠팡·메타·틱톡·구글 + 로그인된 GFA 수집 + 대시보드 빌드 + git push까지 한 번에 수행된다. (스마트스토어는 로그인 안 돼있으면 자동 스킵됨 — 정상)
 
 ## 5. 마무리 로그
-- `out\claude-daily.log` 에 한 줄 요약을 append: 실행일시 + 각 채널(cafe24/coupang/meta/tiktok/google/gfa/smartstore) 어제 데이터 유무. out\*.json의 어제 날짜 존재로 판단.
+- `out\claude-daily.log` 에 한 줄 요약을 append: 실행일시 + 채널(cafe24/coupang/meta/tiktok/google/gfa) 어제 데이터 유무. out\*.json의 어제 날짜 존재로 판단. 스마트스토어는 로그에서 제외(사용자 담당).
 
 ## 주의
 - 비밀번호 등 민감정보를 로그·출력에 남기지 마라.
-- 스마트스토어는 휴대폰 인증이라 시도하지 마라(계정 잠금 위험).
+- 스마트스토어는 절대 손대지 마라(사용자 담당).
 - 캡차 외의 판단이 필요한 상황(예상 못한 화면)이면 무리하지 말고 로그에 남기고 종료하라.
