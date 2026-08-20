@@ -50,6 +50,20 @@ window.remoteLoadData = async function(brand,period){
        return d.exists ? JSON.parse(d.data().json||'null') : null; }
   catch(e){ console.warn('데이터 로드 실패', e); return null; }
 };
+// 오늘 수집 상태(자동검증 결과) 로딩 → 상단 상태패널 표시용. verify_data.py가 dailyData/_health에 올림.
+window.remoteLoadHealth = async function(){
+  if(!window._db) return null;
+  try{ const d=await window._db.collection('dailyData').doc('_health').get();
+       return d.exists ? JSON.parse(d.data().json||'null') : null; }
+  catch(e){ console.warn('health 로드 실패', e); return null; }
+};
+// 지난밤 액션 자동적용 결과 로딩 → 상단 패널. apply_actions.py가 dailyData/_applyLog에 올림.
+window.remoteLoadApplyLog = async function(){
+  if(!window._db) return null;
+  try{ const d=await window._db.collection('dailyData').doc('_applyLog').get();
+       return d.exists ? JSON.parse(d.data().json||'null') : null; }
+  catch(e){ console.warn('applyLog 로드 실패', e); return null; }
+};
 // 일자별 전체기록(dailyHistory) 로딩 → {date: rec}. 브라우저 localStorage 기록의 손상/유실을 클라우드로 복원.
 window.remoteLoadHistory = async function(brand){
   if(!window._db||!brand) return null;
@@ -468,6 +482,9 @@ tr.row-ad:hover td.dual-cell .dl7 { background:rgba(245,158,11,0.18); }
 
 <!-- ── Main ───────────────────────────────────────── -->
 <div class="main">
+  <div id="health-panel" style="display:none;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:12px;line-height:1.5"></div>
+  <div id="apply-panel" style="display:none;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:12px;line-height:1.5"></div>
+  <div id="format-ratio-panel" style="display:none;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:12px;line-height:1.5"></div>
   <div id="server-bar" style="display:none;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:10px 16px;margin-bottom:16px;flex-wrap:wrap">
     <span style="font-size:12px;font-weight:700;color:var(--accent)">📊 오늘 데이터</span>
     <button class="btn btn-ghost" id="srv-cmp" style="font-size:12px" onclick="loadServerCombined(currentBrand)">3·7일 비교</button>
@@ -986,6 +1003,22 @@ function parseDirectCSV(file){
                     if(!map[chKey]) map[chKey]={order_amount:0,order_count:0};
                     map[chKey].order_amount+=amt; map[chKey].order_count+=cnt;
                   }
+                  // 구글: UTM 복합키(medium|campaign|term)+PMAX 키 생성(영문 분기와 동일).
+                  // 카페24 한글 컬럼: 유형=medium, 캠페인=campaign, 키워드=term.
+                  // 없으면 광고이름 폴백만 동작 → 광고이름에 '001_' 접두사 없는 신규 캠페인(DMG_011 등)·PMAX 누락됨.
+                  if(ch==='gg'||ch==='google'){
+                    const gmed=(row['유형']||'').trim().toLowerCase();
+                    const gcamp=(row['캠페인']||'').trim().toLowerCase();
+                    const uk='__ggu__'+gmed+'|'+gcamp+'|'+normUtmTerm(rawKey);
+                    if(!map[uk]) map[uk]={order_amount:0,order_count:0};
+                    map[uk].order_amount+=amt; map[uk].order_count+=cnt;
+                    if(gmed==='pmax'){
+                      const pmaxNum=gcamp.match(/pmax[_\s]*(\d+)/i);
+                      const pmaxKey='__pmax__'+(pmaxNum?pmaxNum[1]:normKeyFull(gcamp));
+                      if(!map[pmaxKey]) map[pmaxKey]={order_amount:0,order_count:0};
+                      map[pmaxKey].order_amount+=amt; map[pmaxKey].order_count+=cnt;
+                    }
+                  }
                 } else {
                   // ── 기존 형식 (영문 컬럼: term/channel/medium) ────────────
                   const term=(row.term||'').trim(); if(!term||term==='nan') return;
@@ -1082,11 +1115,12 @@ function parseMetaXLSX(file){
           if(hasAdsetRows&&grp&&!activeAdsets.has(camp+'|||'+grp)) return;
 
           const cost=parseNum(r['지출 금액 (KRW)']||r['Amount spent (KRW)']||r['지출금액(KRW)']);
-          const roasRaw=parseNum(r['구매 ROAS(광고 지출 대비 수익률)']||r['Purchase ROAS']||r['결과 ROAS']||r['ROAS']);
-          const roas=roasRaw>0?(roasRaw<50?roasRaw*100:roasRaw):0;
           const cpa=parseNum(r['결과당 비용']||r['Cost per result']||r['전환당 비용']);
           const conv=parseNum(r['결과']||r['Results']||r['전환수']||r['구매 수']);
           const rev=parseNum(r['구매 전환값']||r['Purchase conversion value']||r['결과 값']||r['전환 값']);
+          // ROAS는 매출/비용으로 직접 산출(포맷 무관). 메타 CSV의 '구매 ROAS' 컬럼은 퍼센트/배율이
+          // 혼재해 <50 판정으로 100배 뻥튀기되는 버그가 있어(예: 13.67%→1366.81%) rev/cost로 통일.
+          const roas=cost>0?rev/cost*100:0;
           const ctr=parseNum(r['CTR(링크 클릭률)']||r['CTR (link click-through rate)']||r['CTR(전체)']||r['CTR']);
           const cpc=parseNum(r['CPC(링크 클릭당 비용)']||r['CPC (cost per link click)']||r['CPC']);
           const atc=parseNum(r['장바구니 담기']||r['웹사이트 장바구니에 담기']||r['장바구니에 담기']||r['Adds to cart']||r['Website adds to cart']);
@@ -1348,15 +1382,15 @@ function calculateBudgetSummary() {
   if (parsed.meta) {
     Object.values(parsed.meta).forEach(camp => {
       const ck = 'meta__camp__' + camp.name;
-      if (camp.budget > 0 || actions[ck]?.budgetFrom) {
-        const from = actions[ck]?.budgetFrom ? parseNum(actions[ck].budgetFrom) * 10000 : camp.budget;
+      if (camp.budget > 0 || actions[ck]?.budgetFrom || actions[ck]?.budgetCur) {
+        const from = curBudget(ck, camp.budget);
         const to   = actions[ck]?.budgetTo   ? parseNum(actions[ck].budgetTo)   * 10000 : from;
         r.meta.change += to - from; r.meta.total += to; r.meta.hasData = true;
       }
       Object.values(camp.groups).forEach(grp => {
         const gk = 'meta__grp__' + camp.name + '__' + grp.name;
-        if (grp.budget > 0 || actions[gk]?.budgetFrom) {
-          const from = actions[gk]?.budgetFrom ? parseNum(actions[gk].budgetFrom) * 10000 : grp.budget;
+        if (grp.budget > 0 || actions[gk]?.budgetFrom || actions[gk]?.budgetCur) {
+          const from = curBudget(gk, grp.budget);
           const to   = actions[gk]?.budgetTo   ? parseNum(actions[gk].budgetTo)   * 10000 : from;
           r.meta.change += to - from; r.meta.total += to; r.meta.hasData = true;
         }
@@ -1367,8 +1401,8 @@ function calculateBudgetSummary() {
   if (parsed.google) {
     Object.values(parsed.google).forEach(camp => {
       const ck = 'gg__camp__' + camp.name;
-      if (camp.budget > 0 || actions[ck]?.budgetFrom) {
-        const from = actions[ck]?.budgetFrom ? parseNum(actions[ck].budgetFrom) * 10000 : camp.budget;
+      if (camp.budget > 0 || actions[ck]?.budgetFrom || actions[ck]?.budgetCur) {
+        const from = curBudget(ck, camp.budget);
         const to   = actions[ck]?.budgetTo   ? parseNum(actions[ck].budgetTo)   * 10000 : from;
         r.google.change += to - from; r.google.total += to; r.google.hasData = true;
       }
@@ -1378,15 +1412,15 @@ function calculateBudgetSummary() {
   if (parsed.tiktok) {
     Object.values(parsed.tiktok).forEach(camp => {
       const ck = 'tk__camp__' + camp.name;
-      if (camp.budget > 0 || actions[ck]?.budgetFrom) {
-        const from = actions[ck]?.budgetFrom ? parseNum(actions[ck].budgetFrom) * 10000 : camp.budget;
+      if (camp.budget > 0 || actions[ck]?.budgetFrom || actions[ck]?.budgetCur) {
+        const from = curBudget(ck, camp.budget);
         const to   = actions[ck]?.budgetTo   ? parseNum(actions[ck].budgetTo)   * 10000 : from;
         r.tiktok.change += to - from; r.tiktok.total += to; r.tiktok.hasData = true;
       }
       Object.values(camp.groups).forEach(grp => {
         const gk = 'tk__grp__' + camp.name + '__' + grp.name;
-        if (grp.budget > 0 || actions[gk]?.budgetFrom) {
-          const from = actions[gk]?.budgetFrom ? parseNum(actions[gk].budgetFrom) * 10000 : grp.budget;
+        if (grp.budget > 0 || actions[gk]?.budgetFrom || actions[gk]?.budgetCur) {
+          const from = curBudget(gk, grp.budget);
           const to   = actions[gk]?.budgetTo   ? parseNum(actions[gk].budgetTo)   * 10000 : from;
           r.tiktok.change += to - from; r.tiktok.total += to; r.tiktok.hasData = true;
         }
@@ -1478,6 +1512,7 @@ function renderAll(){
   const _sx=window.scrollX, _sy=window.scrollY;
   activeTab=tabs[0].id;
   renderTabs(tabs); renderSummary(); renderTable(activeTab);
+  try{ renderFormatRatioPanel(); }catch(e){ console.warn('형식비율 렌더 실패', e); }
   document.getElementById('result').style.display='block';
   if(_sx||_sy){ window.scrollTo(_sx,_sy); requestAnimationFrame(()=>window.scrollTo(_sx,_sy)); }
 }
@@ -1982,18 +2017,47 @@ function actSel(key, hasBudget=true){
     <option ${v==='지켜보기'?'selected':''}>지켜보기</option>
   </select>`;
 }
+// 현재예산(원): 사용자가 직접 수정한 값(budgetCur, 만원)이 있으면 그것, 없으면 수집 데이터값.
+// (수집이 실패해 옛/틀린 값이 와도 사용자가 직접 교정 가능. 비우면 수집값으로 복원.)
+function curBudget(key,dataBudget){
+  const a=actions[key];
+  if(a&&a.budgetCur!=null&&String(a.budgetCur).trim()!=='') return parseNum(a.budgetCur)*10000;
+  if(dataBudget&&dataBudget>0) return dataBudget;
+  if(a&&a.budgetFrom!=null&&String(a.budgetFrom).trim()!=='') return parseNum(a.budgetFrom)*10000;
+  return dataBudget||0;
+}
+function curBudgetMan(key,dataBudget){return fmtMan(curBudget(key,dataBudget),true);}
 function budgetEl(key,current){
-  const cur=fmtMan(current,true);
+  const cur=curBudgetMan(key,current);   // 표시=수동수정값(있으면) 아니면 수집값
   if(!actions[key]) actions[key]={action:'유지',budgetFrom:cur,budgetTo:cur,memo:''};
   else if(!actions[key].budgetFrom) actions[key].budgetFrom=cur;
+  const edited=actions[key].budgetCur!=null&&String(actions[key].budgetCur).trim()!=='';
   const isOff=actions[key].action==='끄기';
   const toVal=isOff?'0':(actions[key].budgetTo||cur);
   const toStyle=isOff?'color:var(--red);opacity:0.7':'';
+  const fromStyle=edited?'color:var(--accent);font-weight:700':'color:var(--muted)';
+  const fromTitle=edited?'현재예산(만원) — 직접 수정됨. 비우면 수집값 복원':'현재예산(만원) — 클릭해 직접 입력하면 수정, 비우면 수집값';
   return `<div class="budget-wrap">
-    <input class="budget-in" value="${cur}" readonly title="현재예산(만원)" style="color:var(--muted)">
+    <input class="budget-in" id="bfrom-${CSS.escape(key)}" value="${cur}" title="${fromTitle}" style="${fromStyle}" onchange="setBudgetCur('${key}',${current},this.value)">
     <span class="budget-arrow">→</span>
     <input class="budget-in" id="bto-${CSS.escape(key)}" value="${toVal}" ${isOff?'readonly':''} style="${toStyle}" onchange="setBudget('${key}',${current},this.value)" placeholder="변경">
   </div>`;
+}
+// 현재예산 직접 수정 저장. 빈 값이면 수집값으로 복원(오버라이드 제거).
+function setBudgetCur(key,dataCurrent,val){
+  if(!actions[key]) actions[key]={action:'유지',budgetFrom:'',budgetTo:'',memo:''};
+  const prevMan=curBudgetMan(key,dataCurrent);
+  const nv=String(val).trim();
+  if(nv==='') delete actions[key].budgetCur;
+  else actions[key].budgetCur=String(parseNum(nv));
+  const newMan=curBudgetMan(key,dataCurrent);
+  // 변경목표(budgetTo)를 따로 안 정했으면(비었거나 이전 현재값과 동일) 새 현재값으로 동기화
+  const bt=actions[key].budgetTo;
+  if((bt==null||String(bt).trim()===''||String(bt)===String(prevMan))&&actions[key].action!=='끄기'){
+    actions[key].budgetTo=newMan;
+  }
+  actions[key].budgetFrom=newMan;
+  renderAll(); triggerAutoSave();
 }
 // ABO 캠페인(캠페인 예산=0, 광고세트에 예산)의 캠페인 행: 광고세트 예산 합계를 "현재→변경"으로 표시.
 // 실제 증감은 광고세트 행에서 입력 → 변경합계는 세트들의 budgetTo 합으로 실시간 갱신(updateAboRollups).
@@ -2004,12 +2068,12 @@ function aboToSum(camp, gkPrefix){
     const gk=gkPrefix+camp.name+'__'+grp.name;
     const a=actions[gk];
     if(a&&a.action==='끄기') return; // 끄기 세트는 0
-    s+=(a&&a.budgetTo!==''&&a.budgetTo!=null)?parseNum(a.budgetTo)*10000:(grp.budget||0);
+    s+=(a&&a.budgetTo!==''&&a.budgetTo!=null)?parseNum(a.budgetTo)*10000:curBudget(gk,grp.budget);
   });
   return s;
 }
 function aboBudgetEl(cKey, camp, gkPrefix){
-  const curSum=Object.values(camp.groups).reduce((s,g)=>s+(g.budget||0),0);
+  const curSum=Object.values(camp.groups).reduce((s,g)=>s+curBudget(gkPrefix+camp.name+'__'+g.name,g.budget),0);
   const toSum=aboToSum(camp, gkPrefix);
   const col=toSum>curSum?'color:var(--green)':toSum<curSum?'color:var(--red)':'color:var(--muted)';
   return `<div class="budget-wrap" title="ABO 캠페인 — 광고세트 예산 합계(증감은 광고세트 행에서 입력)">
@@ -2024,7 +2088,7 @@ function updateAboRollups(){
   [['meta','meta__camp__','meta__grp__'],['tiktok','tk__camp__','tk__grp__']].forEach(([media,ckPre,gkPre])=>{
     const p=parsed[media]; if(!p) return;
     Object.values(p).forEach(camp=>{
-      const curSum=Object.values(camp.groups||{}).reduce((s,g)=>s+(g.budget||0),0);
+      const curSum=Object.values(camp.groups||{}).reduce((s,g)=>s+curBudget(gkPre+camp.name+'__'+g.name,g.budget),0);
       if((camp.budget||0)!==0||curSum<=0) return; // ABO만
       const el=document.getElementById('abosum-'+CSS.escape(ckPre+camp.name));
       if(!el) return;
@@ -2067,7 +2131,7 @@ function setAction(key,val){
 }
 function setBudget(key,cur,val){
   if(!actions[key])actions[key]={action:'유지',budgetFrom:'',budgetTo:'',memo:''};
-  const from=fmtMan(cur,true);
+  const from=curBudgetMan(key,cur);   // 수동 수정한 현재값 우선
   actions[key].budgetFrom=from;
   actions[key].budgetTo=val;
   // 숫자 비교로 액션 자동 변경 (끄기·지켜보기는 유지)
@@ -2315,9 +2379,140 @@ async function syncHistoryFromCloud(brand){
   }catch(e){ console.warn('history sync 실패', e); }
 }
 
+// ── 오늘 수집 상태패널 (자동검증 결과를 한눈에) ─────────────────────────────
+function _hesc(s){ return String(s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+function renderHealthPanel(h){
+  const el = document.getElementById('health-panel');
+  if(!el) return;
+  if(!h){ el.style.display='none'; return; }
+  const when = h.checkedAt ? (' · '+_hesc(h.checkedAt)) : '';
+  if(h.ok){
+    el.style.background='rgba(46,160,67,.12)'; el.style.border='1px solid rgba(46,160,67,.55)'; el.style.color='inherit';
+    el.innerHTML = '<span style="font-weight:700;color:var(--green)">✅ 오늘 데이터 점검 정상</span>'
+      + '<span style="color:var(--muted);font-size:11px">'+when+'</span>';
+  } else {
+    el.style.background='rgba(224,85,85,.12)'; el.style.border='1px solid rgba(224,85,85,.6)'; el.style.color='inherit';
+    const items = (h.issues||[]).map(function(s){ return '<li style="margin:2px 0">'+_hesc(s)+'</li>'; }).join('');
+    el.innerHTML = '<div style="font-weight:700;color:#e05555;margin-bottom:4px">⚠️ 오늘 데이터 점검 — '+(h.count||0)+'건 이상'
+      + '<span style="color:var(--muted);font-weight:400;font-size:11px">'+when+'</span></div>'
+      + '<ul style="margin:0;padding-left:18px">'+items+'</ul>';
+  }
+  el.style.display='block';
+}
+// 지난밤 액션 자동적용(메타·구글) 결과 패널
+function renderApplyPanel(a){
+  const el = document.getElementById('apply-panel');
+  if(!el) return;
+  if(!a || !a.counts){ el.style.display='none'; return; }
+  const c = a.counts||{};
+  const when = a.ranAt ? _hesc(a.ranAt) : '';
+  const opKo = function(o){ return o==='pause'?'끄기':(o==='budget'?'예산':o); };
+  // 실제로 반영/차단/오류난 항목만 표시(무변경·대상없음·계획만은 생략)
+  const show = (a.items||[]).filter(function(it){
+    const r=String(it.result||'');
+    return /^(paused|set\(|already_paused|blocked|ERROR)/.test(r);
+  });
+  const lines = show.map(function(it){
+    const r=String(it.result||'');
+    const col = /^ERROR|^blocked/.test(r) ? '#e05555' : 'var(--green)';
+    const nm = _hesc(it.name||it.key||'');
+    return '<li style="margin:2px 0"><span style="color:var(--muted)">['+_hesc(it.brand||'')+'/'+_hesc(it.media||'')+']</span> '
+      + _hesc(opKo(it.op))+' <b>'+nm+'</b> → <span style="color:'+col+'">'+_hesc(r)+'</span></li>';
+  }).join('');
+  const err = (c.errors||0)>0;
+  el.style.background = err ? 'rgba(224,85,85,.10)' : 'rgba(79,127,255,.10)';
+  el.style.border = '1px solid '+(err ? 'rgba(224,85,85,.5)' : 'rgba(79,127,255,.5)');
+  el.style.color='inherit';
+  el.innerHTML = '<div style="font-weight:700;margin-bottom:4px">🤖 지난밤 액션 자동적용'
+    + '<span style="color:var(--muted);font-weight:400;font-size:11px"> · '+when+' · '+_hesc(a.mode||'')
+    + ' · 적용 '+(c.applied||0)+' 스킵 '+(c.skipped||0)+' 오류 '+(c.errors||0)+'</span></div>'
+    + (lines ? '<ul style="margin:0;padding-left:18px">'+lines+'</ul>'
+             : '<div style="color:var(--muted)">반영된 변경 없음</div>');
+  el.style.display='block';
+}
+// ── 소재 영상형식(T/AI/TP 등) 비율 패널 ───────────────────────────────────────
+// 소재명 끝 대문자 형식코드 추출(소문자 접미 _cc·편집자(xx) 무시). 없으면 '기타'.
+function _fmtCode(name){
+  var m = String(name||'').match(/_\s*([A-Z]{1,4})(_[a-z]{1,4})?(\([^)]*\))?\s*$/);
+  return m ? m[1].toUpperCase() : '기타';
+}
+// 트래픽·장바구니 목적 캠페인은 통계 제외. 메타 vo/trf=트래픽·atc=장바구니, 구글 캠페인명 '트래픽'.
+function _fmtExcludedCamp(name){
+  var s = String(name||'');
+  if(/트래픽|traffic/i.test(s)) return true;
+  if(/장바구니/.test(s)) return true;
+  if(/_vo_/i.test(s)) return true;                       // fb_vo_(트래픽), fb_vox_(전환)은 미포함
+  if(/(^|[^a-z])trf([^a-z]|$)/i.test(s)) return true;    // asc_trf_(트래픽)
+  if(/(^|[^a-z])atc([^a-z]|$)/i.test(s)) return true;    // asc_atc_(장바구니 담기)
+  return false;
+}
+function _fmtCollect(data){
+  var res = {meta:{}, google:{}, tiktok:{}};
+  if(!data) return res;
+  ['meta','google','tiktok'].forEach(function(media){
+    var camps = data[media] || {};
+    Object.keys(camps).forEach(function(ck){
+      var camp = camps[ck] || {};
+      var cname = camp.name || ck;
+      if(/PMAX/i.test(cname)) return;                    // PMAX는 소재 개념 없음
+      if(_fmtExcludedCamp(cname) || _fmtExcludedCamp(ck)) return;
+      var ads = [];
+      if(media==='google'){ ads = camp.ads || []; }
+      else { var g = camp.groups || {}; Object.keys(g).forEach(function(gk){ ads = ads.concat((g[gk]&&g[gk].ads)||[]); }); }
+      ads.forEach(function(ad){
+        var code = _fmtCode(ad.name);
+        var b = res[media][code] || (res[media][code]={cnt:0, cost:0});
+        b.cnt++; b.cost += (+ad.cost || 0);
+      });
+    });
+  });
+  return res;
+}
+function _fmtBlock(label, data){
+  var f = _fmtCollect(data);
+  var ko = {meta:'메타', google:'구글', tiktok:'틱톡'};
+  var parts = [];
+  ['meta','google','tiktok'].forEach(function(m){
+    var codes = Object.keys(f[m]); if(!codes.length) return;
+    var tc=0, tcost=0;
+    codes.forEach(function(c){ tc+=f[m][c].cnt; tcost+=f[m][c].cost; });
+    codes.sort(function(a,b){ return f[m][b].cnt-f[m][a].cnt; });
+    var seg = codes.map(function(c){
+      var cp = Math.round(f[m][c].cnt/tc*100);
+      var kp = tcost ? Math.round(f[m][c].cost/tcost*100) : 0;
+      return _hesc(c)+' '+cp+'%'+(tcost?'<span style="color:var(--muted)">(₩'+kp+'%)</span>':'');
+    }).join(' · ');
+    parts.push('<b>'+ko[m]+'</b> '+seg);
+  });
+  if(!parts.length) return '';
+  return '<div style="margin:3px 0"><span style="color:var(--accent);font-weight:700">['+label+']</span> '
+    + parts.join(' &nbsp;|&nbsp; ') + '</div>';
+}
+function renderFormatRatioPanel(){
+  var el = document.getElementById('format-ratio-panel'); if(!el) return;
+  var secs = [];
+  if(typeof dualMode!=='undefined' && dualMode && typeof parsed7!=='undefined' && parsed7){
+    secs.push(_fmtBlock('3일', parsed));
+    secs.push(_fmtBlock('7일', parsed7));
+  } else {
+    secs.push(_fmtBlock((typeof srvPeriod!=='undefined' && srvPeriod==='7')?'7일':'3일', parsed));
+  }
+  secs = secs.filter(Boolean);
+  if(!secs.length){ el.style.display='none'; return; }
+  el.style.background='rgba(79,127,255,.08)';
+  el.style.border='1px solid rgba(79,127,255,.4)';
+  el.style.color='inherit';
+  el.innerHTML = '<div style="font-weight:700;margin-bottom:4px">🎬 소재 영상형식 비율'
+    + '<span style="color:var(--muted);font-weight:400;font-size:11px"> · 소재 개수%(₩비용%) · 트래픽·장바구니·PMAX 제외</span></div>'
+    + secs.join('');
+  el.style.display='block';
+}
+
 // ── Server data (Firestore 보호 데이터 자동 로드) ─────────────────────────────
 let serverManifest = null;
 async function initServerData(brand){
+  try{ renderHealthPanel(await remoteLoadHealth()); }catch(e){ console.warn('health 렌더 실패', e); }
+  try{ renderApplyPanel(await remoteLoadApplyLog()); }catch(e){ console.warn('applyLog 렌더 실패', e); }
   const bar = document.getElementById('server-bar');
   if(!bar) return;
   try{
