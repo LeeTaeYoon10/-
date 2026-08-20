@@ -2488,9 +2488,16 @@ function _fmtBlock(label, data){
   return '<div style="margin:3px 0"><span style="color:var(--accent);font-weight:700">['+label+']</span> '
     + parts.join(' &nbsp;|&nbsp; ') + '</div>';
 }
-function renderFormatRatioPanel(){
+async function renderFormatRatioPanel(){
   var el = document.getElementById('format-ratio-panel'); if(!el) return;
   var secs = [];
+  // 오늘(당일 1d)은 별도 Firestore 문서(brand_1d)에서 로드 — 진행중이라 없을 수 있음(그럼 생략)
+  try{
+    if(typeof currentBrand!=='undefined' && currentBrand && typeof remoteLoadData==='function'){
+      var d1 = await remoteLoadData(currentBrand, '1d');
+      if(d1) secs.push(_fmtBlock('오늘', d1));
+    }
+  }catch(e){ /* 1d 없으면 오늘 섹션 생략 */ }
   if(typeof dualMode!=='undefined' && dualMode && typeof parsed7!=='undefined' && parsed7){
     secs.push(_fmtBlock('3일', parsed));
     secs.push(_fmtBlock('7일', parsed7));
