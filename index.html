@@ -1352,13 +1352,28 @@ function parseTikTokXLSX(file){
           else if(campBudget>0&&campaigns[camp].budget===0) campaigns[camp].budget=campBudget;
           const grpKey=grp||'(그룹 없음)';
           if(!campaigns[camp].groups[grpKey]) campaigns[camp].groups[grpKey]={name:grpKey,budget:grpBudget,ads:[]};
-          campaigns[camp].groups[grpKey].ads.push({
-            name:ad,cost,cpa,conv,rev,roas,ctr,cpc,atc,clicks,impressions,
-            directAmount:direct?direct.order_amount:null,
-            directCount:direct?direct.order_count:null,
-            directRoas:(direct&&cost>0)?direct.order_amount/cost*100:null,
-            directCpa:(direct&&direct.order_count>0)?cost/direct.order_count:null,
-          });
+          const _g=campaigns[camp].groups[grpKey];
+          // '그래니 소재분석' 보고서처럼 By Day(일자별)로 같은 소재가 여러 행이면 소재 단위로 합산.
+          // (합치지 않으면 directAmount(직접전환)가 일수만큼 중복 계상돼 매출이 부풀려짐 — 2026-08-24 사고)
+          let _ex=_g.ads.find(x=>x.name===ad);
+          if(_ex){
+            _ex.cost+=cost; _ex.conv+=conv; _ex.rev+=rev; _ex.atc+=atc; _ex.clicks+=clicks; _ex.impressions+=impressions;
+            // directAmount/directCount는 소재명 기준 카페24 매출(소재당 고정값)이라 최초 1회만 세팅, 중복 합산 금지
+            _ex.roas=_ex.cost>0?_ex.rev/_ex.cost*100:0;
+            _ex.cpc=_ex.clicks>0?_ex.cost/_ex.clicks:0;
+            _ex.ctr=_ex.impressions>0?_ex.clicks/_ex.impressions*100:0;
+            _ex.cpa=_ex.conv>0?_ex.cost/_ex.conv:0;
+            _ex.directRoas=(_ex.directAmount!=null&&_ex.cost>0)?_ex.directAmount/_ex.cost*100:_ex.directRoas;
+            _ex.directCpa=(_ex.directCount>0)?_ex.cost/_ex.directCount:_ex.directCpa;
+          }else{
+            _g.ads.push({
+              name:ad,cost,cpa,conv,rev,roas,ctr,cpc,atc,clicks,impressions,
+              directAmount:direct?direct.order_amount:null,
+              directCount:direct?direct.order_count:null,
+              directRoas:(direct&&cost>0)?direct.order_amount/cost*100:null,
+              directCpa:(direct&&direct.order_count>0)?cost/direct.order_count:null,
+            });
+          }
         });
         const sorted={};
         Object.keys(campaigns).sort().forEach(k=>{sorted[k]=campaigns[k];});
