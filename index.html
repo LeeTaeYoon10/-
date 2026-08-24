@@ -2198,9 +2198,9 @@ function downloadScreenshot() {
 
   const today = new Date().toISOString().slice(0, 10);
   const mediaList = [];
-  if (parsed.meta)   mediaList.push({ label:'META',   build: buildMetaTable,   filename:`액션리포트_메타_${today}.jpg` });
-  if (parsed.google) mediaList.push({ label:'GOOGLE', build: buildGoogleTable, filename:`액션리포트_구글_${today}.jpg` });
-  if (parsed.tiktok) mediaList.push({ label:'TIKTOK', build: buildTikTokTable, filename:`액션리포트_틱톡_${today}.jpg` });
+  if (parsed.meta)   mediaList.push({ label:'META',   mkey:'meta',   build: buildMetaTable,   filename:`액션리포트_메타_${today}.jpg` });
+  if (parsed.google) mediaList.push({ label:'GOOGLE', mkey:'google', build: buildGoogleTable, filename:`액션리포트_구글_${today}.jpg` });
+  if (parsed.tiktok) mediaList.push({ label:'TIKTOK', mkey:'tiktok', build: buildTikTokTable, filename:`액션리포트_틱톡_${today}.jpg` });
 
   // 현재 스크롤 위치 저장 후 맨 위로 이동 (핵심: 스크롤 내려간 상태면 absolute top:0 div가 뷰포트 밖에 있어 잘림)
   const savedScrollX = window.scrollX;
@@ -2231,7 +2231,7 @@ function downloadScreenshot() {
     const summaryHTML = summaryBarEl
       ? `<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">${summaryBarEl.innerHTML}</div>`
       : '';
-    capDiv.innerHTML = summaryHTML + m.build();
+    capDiv.innerHTML = summaryHTML + _fmtCaptureBar(m.mkey) + m.build();
     // 캡처용: .table-wrap의 max-height 제한 해제 (이게 없으면 뷰포트 높이로 잘림)
     capDiv.querySelectorAll('.table-wrap').forEach(el => {
       el.style.maxHeight = 'none';
@@ -2483,25 +2483,63 @@ function _fmtCollect(data){
   });
   return res;
 }
+// 형식코드별 고정 색상(범례·막대 공통). 미정의 코드는 회색.
+var _FMT_COLORS = {T:'#4f7fff', I:'#22c55e', AI:'#f59e0b', TP:'#a855f7', AN:'#ec4899',
+  ANP:'#14b8a6', P:'#ef4444', H:'#f43f5e', TG:'#0ea5e9', AP:'#8b5cf6', 기타:'#94a3b8'};
+function _fmtColor(code){ return _FMT_COLORS[code] || '#94a3b8'; }
+// 한 매체의 형식 분포 → 100% 스택 막대 + 범례 HTML (개수 기준 정렬, 비용%는 범례에 병기)
+function _fmtMediaRow(mediaKo, codesObj){
+  var codes = Object.keys(codesObj||{}); if(!codes.length) return '';
+  var tc=0, tcost=0;
+  codes.forEach(function(c){ tc+=codesObj[c].cnt; tcost+=codesObj[c].cost; });
+  if(!tc) return '';
+  codes.sort(function(a,b){ return codesObj[b].cnt-codesObj[a].cnt; });
+  var bar = codes.map(function(c){
+    var w = codesObj[c].cnt/tc*100, cp = Math.round(w);
+    var inner = w>=10 ? (_hesc(c)+' '+cp+'%') : (w>=5 ? cp+'%' : '');
+    return '<div title="'+_hesc(c)+' '+cp+'%" style="width:'+w+'%;background:'+_fmtColor(c)
+      +';display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;'
+      +'overflow:hidden;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.35)">'+inner+'</div>';
+  }).join('');
+  var legend = codes.map(function(c){
+    var cp = Math.round(codesObj[c].cnt/tc*100);
+    var kp = tcost ? Math.round(codesObj[c].cost/tcost*100) : 0;
+    return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;white-space:nowrap">'
+      +'<i style="width:9px;height:9px;border-radius:2px;background:'+_fmtColor(c)+';display:inline-block"></i>'
+      +_hesc(c)+' <b>'+cp+'%</b>'+(tcost?'<span style="color:var(--muted)">·₩'+kp+'%</span>':'')+'</span>';
+  }).join('');
+  return '<div style="margin:7px 0">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+      +'<span style="min-width:34px;font-weight:800;font-size:11px">'+mediaKo+'</span>'
+      +'<div style="flex:1;display:flex;height:20px;border-radius:5px;overflow:hidden;background:rgba(0,0,0,.18)">'+bar+'</div>'
+    +'</div>'
+    +'<div style="padding-left:42px;font-size:10.5px;line-height:1.7">'+legend+'</div>'
+  +'</div>';
+}
 function _fmtBlock(label, data){
   var f = _fmtCollect(data);
   var ko = {meta:'메타', google:'구글', tiktok:'틱톡'};
-  var parts = [];
+  var rows = [];
   ['meta','google','tiktok'].forEach(function(m){
-    var codes = Object.keys(f[m]); if(!codes.length) return;
-    var tc=0, tcost=0;
-    codes.forEach(function(c){ tc+=f[m][c].cnt; tcost+=f[m][c].cost; });
-    codes.sort(function(a,b){ return f[m][b].cnt-f[m][a].cnt; });
-    var seg = codes.map(function(c){
-      var cp = Math.round(f[m][c].cnt/tc*100);
-      var kp = tcost ? Math.round(f[m][c].cost/tcost*100) : 0;
-      return _hesc(c)+' '+cp+'%'+(tcost?'<span style="color:var(--muted)">(₩'+kp+'%)</span>':'');
-    }).join(' · ');
-    parts.push('<b>'+ko[m]+'</b> '+seg);
+    var r = _fmtMediaRow(ko[m], f[m]); if(r) rows.push(r);
   });
-  if(!parts.length) return '';
-  return '<div style="margin:3px 0"><span style="color:var(--accent);font-weight:700">['+label+']</span> '
-    + parts.join(' &nbsp;|&nbsp; ') + '</div>';
+  if(!rows.length) return '';
+  return '<div style="margin:10px 0 2px"><span style="color:var(--accent);font-weight:800;font-size:12.5px">['+label+']</span></div>'
+    + rows.join('');
+}
+// 캡처 이미지 상단에 넣을 단일 매체 형식비율 카드(현재 기간 parsed 기준)
+function _fmtCaptureBar(mkey){
+  try{
+    if(typeof parsed==='undefined' || !parsed) return '';
+    var f = _fmtCollect(parsed);
+    var ko = {meta:'메타', google:'구글', tiktok:'틱톡'};
+    var row = _fmtMediaRow(ko[mkey], f[mkey]);
+    if(!row) return '';
+    return '<div style="margin-bottom:18px;padding:12px 16px;border:1px solid rgba(79,127,255,.45);border-radius:9px;background:rgba(79,127,255,.10)">'
+      +'<div style="font-weight:800;font-size:13px;margin-bottom:2px">🎬 소재 영상형식 비율'
+      +'<span style="color:#8892a4;font-weight:400;font-size:10.5px"> · 개수%(₩비용%) · 트래픽·장바구니·PMAX 제외</span></div>'
+      + row + '</div>';
+  }catch(e){ return ''; }
 }
 async function renderFormatRatioPanel(){
   var el = document.getElementById('format-ratio-panel'); if(!el) return;
