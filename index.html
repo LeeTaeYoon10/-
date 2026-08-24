@@ -875,7 +875,7 @@ function normKey(k){
   const s=String(k).normalize('NFC');
   return s
     .replace(/\s*\(j[sh]\)\s*/gi,'')
-    .replace(/\s*\([a-z]{2,3}\)\s*$/i,'')
+    .replace(/\s*\([^)]*\)\s*$/,'')  // 끝 괄호 주석 전체 제거((ty)·(할인)·(남성타겟) 등). 카페24 UTM엔 이 괄호가 없어 매칭 실패하던 것 근본수정(2026-08-24)
     .replace(/_AN\s*$/i,'')
     .replace(/\s+/g,'')
     .toLowerCase();
@@ -885,7 +885,7 @@ function normKeyFull(k){
   const s=String(k).normalize('NFC');
   return s
     .replace(/\s*\(j[sh]\)\s*/gi,'')
-    .replace(/\s*\([a-z]{2,3}\)\s*$/i,'')
+    .replace(/\s*\([^)]*\)\s*$/,'')  // 끝 괄호 주석 전체 제거((ty)·(할인)·(남성타겟) 등). 카페24 UTM엔 이 괄호가 없어 매칭 실패하던 것 근본수정(2026-08-24)
     .replace(/_AN\s*$/i,'')
     .replace(/[\s_]+/g,'')
     .toLowerCase();
