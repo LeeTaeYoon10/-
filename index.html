@@ -2128,7 +2128,7 @@ function buildGFATable(){
       const ad7=find7Ad('gfa',camp.name,grp.name,grp.name);
       const _fullRow=adRowCells(ad,ad7,aKey,'');
       const _firstTdEnd=_fullRow.indexOf('</td>')+5;
-      rows+=`<tr class="row-ad" data-camp="${cId}" ${adHide}><td class="name-cell"><span title="${grp.name}">${shorten(gfaGrpLabel(grp.name),34)}</span>${copyBtn(grp.name,'ad')}</td>${_fullRow.slice(_firstTdEnd)}</tr>`;
+      rows+=`<tr class="row-ad" data-camp="${cId}" ${adHide}><td class="name-cell"><span title="${grp.name}">${shorten(grp.name,40)}</span>${copyBtn(grp.name,'ad')}</td>${_fullRow.slice(_firstTdEnd)}</tr>`;
     });
   });
 
