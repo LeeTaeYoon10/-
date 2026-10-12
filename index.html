@@ -808,8 +808,8 @@ function getThresh() {
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const files   = { meta:null, google:null, pmax:null, tiktok:null, direct:null };
-const parsed  = { meta:null, google:null, tiktok:null, direct:null };
+const files   = { meta:null, google:null, pmax:null, tiktok:null, direct:null, gfa:null };
+const parsed  = { meta:null, google:null, tiktok:null, direct:null, gfa:null };
 let parsed7   = null;        // 7일 데이터 (3일/7일 2줄 비교용)
 let dualMode  = false;       // true면 소재 행을 3일/7일 2줄로 표시
 let srvPeriod = '3';         // 단일모드에서 현재 보는 기간('3'|'7') — 수동입력 적용 기간
@@ -2776,8 +2776,8 @@ async function loadServerCombined(brand){
       remoteLoadData(brand,'7d')
     ]);
     if(!rec3){ alert('데이터를 불러오지 못했습니다: '+brand); return; }
-    parsed.meta=rec3.meta||null; parsed.google=rec3.google||null; parsed.tiktok=rec3.tiktok||null;
-    parsed7 = rec7 ? {meta:rec7.meta||null, google:rec7.google||null, tiktok:rec7.tiktok||null} : null;
+    parsed.meta=rec3.meta||null; parsed.google=rec3.google||null; parsed.tiktok=rec3.tiktok||null; parsed.gfa=rec3.gfa||null;
+    parsed7 = rec7 ? {meta:rec7.meta||null, google:rec7.google||null, tiktok:rec7.tiktok||null, gfa:rec7.gfa||null} : null;
     dualMode = !!parsed7;
     Object.keys(actions).forEach(k=>delete actions[k]);
     Object.assign(actions, rec3.actions||{});
@@ -2800,7 +2800,7 @@ async function loadServerData(brand, period){
   try{
     const rec = await remoteLoadData(brand,period);
     if(!rec){ alert('데이터를 불러오지 못했습니다: '+brand+' '+period); return; }
-    parsed.meta = rec.meta||null; parsed.google = rec.google||null; parsed.tiktok = rec.tiktok||null;
+    parsed.meta = rec.meta||null; parsed.google = rec.google||null; parsed.tiktok = rec.tiktok||null; parsed.gfa = rec.gfa||null;
     parsed7 = null; dualMode = false;        // 단일 기간 보기
     srvPeriod = (period==='7d')?'7':'3';      // 단일모드 수동입력 적용 기간
     Object.keys(actions).forEach(k=>delete actions[k]);
