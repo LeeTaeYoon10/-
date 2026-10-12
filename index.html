@@ -1564,7 +1564,9 @@ function renderTabs(tabs){
 
 function switchTab(id){
   activeTab=id;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.textContent.startsWith(id==='meta'?'메타':id==='google'?'구글':'틱톡')));
+  const labelMap={meta:'메타',google:'구글',tiktok:'틱톡',gfa:'GFA'};
+  const label=labelMap[id]||id;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.textContent.startsWith(label)));
   renderTable(id);
 }
 
@@ -1583,6 +1585,10 @@ function computeSummaryMetrics(root,period){
   if(root&&root.tiktok) Object.values(root.tiktok).forEach(c=>Object.values(c.groups).forEach(g=>g.ads.forEach(a=>{
     totalCost+=a.cost;totalRev+=a.rev||0;tkCost+=a.cost;
     const d=dir(a,'tk__ad__'+c.name+'__'+g.name+'__'+a.name);totalDirect+=d;tkDirect+=d;
+  })));
+  if(root&&root.gfa) Object.values(root.gfa).forEach(c=>Object.values(c.groups).forEach(g=>g.ads.forEach(a=>{
+    totalCost+=a.cost||0;totalRev+=a.rev||0;
+    const d=dir(a,'gfa__grp__'+c.name+'__'+g.name);totalDirect+=d;
   })));
   return {totalCost,totalRev,totalDirect,metaCost,metaDirect,ggCost,ggDirect,tkCost,tkDirect,
     roas:totalCost>0?totalRev/totalCost*100:0,
