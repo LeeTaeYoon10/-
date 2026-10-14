@@ -1979,26 +1979,27 @@ function buildTikTokTable(){
 }
 
 // ── GFA ──────────────────────────────────────────────────────────────────────
-// 카페24 GFA 키워드("스포츠웨어_261005_ccfm_야외활동가벼움_I")에서 매치키 추출
+// GFA 전용 정규화: normKeyFull(공백·언더스코어·끝괄호 제거) + 특수문자(+·/·괄호··&- 등) 제거.
+// GFA 그룹명("방수+추석성과")과 카페24 UTM("방수추석성과")의 +·공백 등 표기차 흡수.
+function gfaNorm(s){ return normKeyFull(s).replace(/[+\/().,·&\-\s]/g, ''); }
+// 카페24 GFA 키워드에서 매치키 추출. **신형 UTM만 매칭**(2026-10-13 UTM을 GFA 그룹명 형식으로 통일).
+// 신형 = 그룹명 형식 "날짜6자리_테마_타겟_구매의도(...)" = 맨 앞 6자리 날짜 + ccfm 없음 → 그룹키(날짜+테마)와 동일.
+// 구형(접두_날짜_ccfm_테마_I)은 매칭 제외 — 그룹키와 안 겹치는 고유 키로 격리.
 function gfaDirectKey(keyword){
   const parts = String(keyword).split('_');
-  const dateIdx = parts.findIndex(p => /^\d{6}$/.test(p));
-  if(dateIdx < 0) return normKeyFull(keyword);
-  const date = parts[dateIdx];
-  const ccfmIdx = parts.findIndex(p => /^ccfm$/i.test(p));
-  if(ccfmIdx >= 0 && ccfmIdx + 1 < parts.length){
-    const themeParts = parts.slice(ccfmIdx + 1).filter(p => !/^[IVBCM]$/i.test(p));
-    return normKeyFull(date + themeParts.join(''));
+  const hasCcfm = parts.some(p => /^ccfm$/i.test(p));
+  if(/^\d{6}$/.test(parts[0]) && !hasCcfm && parts.length >= 2){
+    return gfaNorm(parts[0] + parts[1]);
   }
-  return normKeyFull(parts.slice(dateIdx).join(''));
+  return '__gfa_legacy__' + gfaNorm(keyword);
 }
 // GFA 그룹명("261005_야외활동가벼움_남3054_구매의도...")에서 매치키 추출
 function gfaGroupKey(groupName){
   const parts = String(groupName).split('_');
   if(/^\d{6}$/.test(parts[0]) && parts.length >= 2){
-    return normKeyFull(parts[0] + parts[1]);
+    return gfaNorm(parts[0] + parts[1]);
   }
-  return normKeyFull(groupName);
+  return gfaNorm(groupName);
 }
 
 function parseGFACSV(file){
