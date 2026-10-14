@@ -2376,7 +2376,7 @@ function campObjectiveBadge(name){
 
 // ── Screenshot Download ──────────────────────────────────────────────────────
 function downloadScreenshot() {
-  if (!parsed.meta && !parsed.google && !parsed.tiktok) {
+  if (!parsed.meta && !parsed.google && !parsed.tiktok && !parsed.gfa) {
     alert('분석 결과가 없습니다.');
     return;
   }
@@ -2395,6 +2395,7 @@ function downloadScreenshot() {
   if (parsed.meta)   mediaList.push({ label:'META',   mkey:'meta',   build: buildMetaTable,   filename:`액션리포트_메타_${today}.jpg` });
   if (parsed.google) mediaList.push({ label:'GOOGLE', mkey:'google', build: buildGoogleTable, filename:`액션리포트_구글_${today}.jpg` });
   if (parsed.tiktok) mediaList.push({ label:'TIKTOK', mkey:'tiktok', build: buildTikTokTable, filename:`액션리포트_틱톡_${today}.jpg` });
+  if (parsed.gfa && Object.keys(parsed.gfa).length) mediaList.push({ label:'GFA', mkey:'gfa', build: buildGFATable, filename:`액션리포트_GFA_${today}.jpg` });
 
   // 현재 스크롤 위치 저장 후 맨 위로 이동 (핵심: 스크롤 내려간 상태면 absolute top:0 div가 뷰포트 밖에 있어 잘림)
   const savedScrollX = window.scrollX;
