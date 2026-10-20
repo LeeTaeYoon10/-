@@ -2444,11 +2444,16 @@ function downloadScreenshot() {
     });
     // html2canvas는 <select>의 선택 텍스트·<input>의 값을 제대로 못 그림(값이 비거나 칸 아래로 밀려 잘림)
     //  → 예산 입력칸·액션 드롭다운이 캡처에서 안 보이던 문제. 정적 텍스트(span)로 치환해 선명히 렌더.
+    //  단, 원본의 className을 그대로 복사해 색(.act-sel.a-up=증액 초록/.a-down=감액 노랑/.a-off=끄기 빨강 등
+    //  클래스 기반 color·background·border)과 숫자 색을 유지한다. (고정색을 주면 증액/감액 색이 사라짐)
     capDiv.querySelectorAll('select').forEach(sel => {
       const t = ((sel.options[sel.selectedIndex] || {}).text || '').trim();
       const sp = document.createElement('span');
-      sp.textContent = (t === '–' || t === '') ? '' : t;
-      sp.style.cssText = 'display:inline-block;padding:3px 8px;font-size:12px;color:#e2e8f0;white-space:nowrap;';
+      sp.textContent = (t === '–') ? '' : t;
+      sp.className = sel.className;                 // act-sel + a-up/a-down/a-off/a-watch 색클래스 유지
+      sp.style.display = 'inline-block'; sp.style.whiteSpace = 'nowrap';
+      sp.style.textAlign = 'center'; sp.style.verticalAlign = 'middle';
+      sp.style.boxSizing = 'border-box';
       if (sel.parentNode) sel.parentNode.replaceChild(sp, sel);
     });
     capDiv.querySelectorAll('input').forEach(inp => {
@@ -2456,7 +2461,10 @@ function downloadScreenshot() {
       const v = (inp.value || '').trim();
       const sp = document.createElement('span');
       sp.textContent = v;
-      sp.style.cssText = 'display:inline-block;min-width:24px;padding:3px 6px;font-size:12px;color:#e2e8f0;text-align:center;white-space:nowrap;';
+      sp.className = inp.className;                 // 원본 입력칸 색·스타일 유지
+      sp.style.display = 'inline-block'; sp.style.minWidth = '24px'; sp.style.whiteSpace = 'nowrap';
+      sp.style.textAlign = 'center'; sp.style.verticalAlign = 'middle';
+      sp.style.boxSizing = 'border-box';
       if (inp.parentNode) inp.parentNode.replaceChild(sp, inp);
     });
     document.body.appendChild(capDiv);
