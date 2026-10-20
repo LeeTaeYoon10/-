@@ -2421,16 +2421,24 @@ function downloadScreenshot() {
       ? `<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">${summaryBarEl.innerHTML}</div>`
       : '';
     capDiv.innerHTML = summaryHTML + _fmtCaptureBar(m.mkey) + m.build();
-    // 캡처용: .table-wrap의 max-height 제한 해제 (이게 없으면 뷰포트 높이로 잘림)
+    // 캡처용: .table-wrap의 max-height/overflow/width 제한 해제
+    //  - maxHeight 없으면 뷰포트 높이로 잘림 / overflow:auto면 넘친 컬럼이 가로스크롤 영역에 숨어 잘림
+    //  - table이 width:100%(부모 기준)라 컬럼 많으면(직접ROAS·7일 2줄 등) 폭이 모자람
+    //    → wrap·table 둘 다 max-content로 '테이블 고유폭'을 확보해야 오른쪽 컬럼이 안 잘림.
     capDiv.querySelectorAll('.table-wrap').forEach(el => {
       el.style.maxHeight = 'none';
       el.style.overflow = 'visible';
+      el.style.width = 'max-content';
+      el.style.maxWidth = 'none';
     });
+    capDiv.querySelectorAll('table').forEach(t => { t.style.width = 'max-content'; });
     document.body.appendChild(capDiv);
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const totalH = capDiv.scrollHeight;
-      const totalW = Math.max(capDiv.scrollWidth, capDiv.offsetWidth);
+      // scrollWidth가 오른쪽 padding(20px)을 포함하지 않는 브라우저 특성으로 오른쪽이 조금 잘림
+      //  → 좌우/상하 여유(패딩분)를 더해 캡처 폭·높이를 넉넉히(남는 영역은 배경색으로 채워짐).
+      const totalH = capDiv.scrollHeight + 24;
+      const totalW = Math.max(capDiv.scrollWidth, capDiv.offsetWidth) + 24;
       const savedMinH = document.body.style.minHeight;
       document.body.style.minHeight = (totalH + 100) + 'px';
 
