@@ -248,7 +248,7 @@ body {
 
 /* ── Buttons ──────────────────────── */
 .action-row { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 24px; }
-.btn { padding: 8px 18px; border-radius: 8px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.18s; font-family: inherit; }
+.btn { padding: 8px 18px; border-radius: 8px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.18s; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { opacity: 0.88; }
 .btn-primary:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
@@ -2441,6 +2441,23 @@ function downloadScreenshot() {
     capDiv.querySelectorAll('.dbadge').forEach(el => {
       el.style.display = 'inline-block'; el.style.verticalAlign = 'middle';
       el.style.marginRight = '4px'; el.style.lineHeight = '1.4';
+    });
+    // html2canvas는 <select>의 선택 텍스트·<input>의 값을 제대로 못 그림(값이 비거나 칸 아래로 밀려 잘림)
+    //  → 예산 입력칸·액션 드롭다운이 캡처에서 안 보이던 문제. 정적 텍스트(span)로 치환해 선명히 렌더.
+    capDiv.querySelectorAll('select').forEach(sel => {
+      const t = ((sel.options[sel.selectedIndex] || {}).text || '').trim();
+      const sp = document.createElement('span');
+      sp.textContent = (t === '–' || t === '') ? '' : t;
+      sp.style.cssText = 'display:inline-block;padding:3px 8px;font-size:12px;color:#e2e8f0;white-space:nowrap;';
+      if (sel.parentNode) sel.parentNode.replaceChild(sp, sel);
+    });
+    capDiv.querySelectorAll('input').forEach(inp => {
+      if (inp.type === 'checkbox' || inp.type === 'radio') return;
+      const v = (inp.value || '').trim();
+      const sp = document.createElement('span');
+      sp.textContent = v;
+      sp.style.cssText = 'display:inline-block;min-width:24px;padding:3px 6px;font-size:12px;color:#e2e8f0;text-align:center;white-space:nowrap;';
+      if (inp.parentNode) inp.parentNode.replaceChild(sp, inp);
     });
     document.body.appendChild(capDiv);
 
