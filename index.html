@@ -2432,6 +2432,16 @@ function downloadScreenshot() {
       el.style.maxWidth = 'none';
     });
     capDiv.querySelectorAll('table').forEach(t => { t.style.width = 'max-content'; });
+    // html2canvas가 flex(.dl의 display:flex; align-items:center)+line-height 조합에서 3일/7일 2줄 셀의
+    // 숫자 높이를 잘못 계산해 셀 아래로 밀어내 잘리는 버그(특히 Pretendard 등 웹폰트 환경)를 회피:
+    // 캡처 clone에서 .dl을 flex→block, 뱃지를 inline-block으로 바꿔 안정적으로 렌더되게 함.
+    capDiv.querySelectorAll('.dl').forEach(el => {
+      el.style.display = 'block'; el.style.whiteSpace = 'nowrap'; el.style.lineHeight = '1.5';
+    });
+    capDiv.querySelectorAll('.dbadge').forEach(el => {
+      el.style.display = 'inline-block'; el.style.verticalAlign = 'middle';
+      el.style.marginRight = '4px'; el.style.lineHeight = '1.4';
+    });
     document.body.appendChild(capDiv);
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
