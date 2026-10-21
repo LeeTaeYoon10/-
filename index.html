@@ -2418,7 +2418,7 @@ function downloadScreenshot() {
     capDiv.style.cssText = 'position:absolute;top:0;left:0;width:max-content;min-width:1200px;z-index:1;background:#0f1117;font-family:\'Pretendard\',\'Apple SD Gothic Neo\',sans-serif;font-size:13px;color:#e2e8f0;box-sizing:border-box;padding:20px;';
     const summaryBarEl = document.getElementById('summary-bar');
     const summaryHTML = summaryBarEl
-      ? `<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">${summaryBarEl.innerHTML}</div>`
+      ? `<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;max-width:100%;box-sizing:border-box;">${summaryBarEl.innerHTML}</div>`
       : '';
     capDiv.innerHTML = summaryHTML + _fmtCaptureBar(m.mkey) + m.build();
     // 캡처용: .table-wrap의 max-height/overflow/width 제한 해제
@@ -2470,6 +2470,12 @@ function downloadScreenshot() {
     document.body.appendChild(capDiv);
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
+      // 요약 카드 줄이 한 줄로 길게 뻗어 캡처 폭이 테이블보다 넓어지면(오른쪽에 큰 빈 배경) 보기 싫음
+      //  → capDiv 폭을 '테이블 고유폭'으로 고정해 요약 바가 그 폭 안에서 여러 줄로 wrap되게 함(테이블이 꽉 참).
+      //  (box-sizing:border-box이므로 좌우 padding 40px을 더해 테이블이 안쪽에 딱 맞게.)
+      const _tw = capDiv.querySelector('.table-wrap');
+      const _tableW = _tw ? Math.ceil(_tw.scrollWidth) : 0;
+      if (_tableW > 0) { capDiv.style.width = (_tableW + 40) + 'px'; void capDiv.offsetHeight; }
       // scrollWidth가 오른쪽 padding(20px)을 포함하지 않는 브라우저 특성으로 오른쪽이 조금 잘림
       //  → 좌우/상하 여유(패딩분)를 더해 캡처 폭·높이를 넉넉히(남는 영역은 배경색으로 채워짐).
       const totalH = capDiv.scrollHeight + 24;
