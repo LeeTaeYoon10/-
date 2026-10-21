@@ -2418,7 +2418,7 @@ function downloadScreenshot() {
     document.getElementById('cap-msg').textContent = `이미지 생성 중… (${m.label})`;
 
     const capDiv = document.createElement('div');
-    capDiv.style.cssText = 'position:absolute;top:0;left:0;width:max-content;min-width:1200px;z-index:1;background:#0f1117;font-family:\'Pretendard\',\'Apple SD Gothic Neo\',sans-serif;font-size:13px;color:#e2e8f0;box-sizing:border-box;padding:20px;';
+    capDiv.style.cssText = 'position:absolute;top:0;left:0;width:max-content;min-width:1200px;z-index:1;background:#0f1117;font-family:\'Pretendard\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',\'맑은 고딕\',sans-serif;font-size:13px;color:#e2e8f0;box-sizing:border-box;padding:20px;';
     const summaryBarEl = document.getElementById('summary-bar');
     const summaryHTML = summaryBarEl
       ? `<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;max-width:100%;box-sizing:border-box;">${summaryBarEl.innerHTML}</div>`
@@ -2486,14 +2486,18 @@ function downloadScreenshot() {
       const savedMinH = document.body.style.minHeight;
       document.body.style.minHeight = (totalH + 100) + 'px';
 
-      html2canvas(capDiv, {
+      // 웹폰트(Pretendard 등)가 캡처 시점에 로딩이 안 끝났거나 폴백되면 html2canvas가 글자 위치를
+      // 잘못 계산해 '숫자가 가로로 어긋나 이중으로 겹쳐' 찍히는 환경 의존 버그가 남 → 폰트 로딩
+      // 완료(document.fonts.ready)를 보장한 뒤 캡처해 글자 메트릭을 안정화.
+      const _fontsReady = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+      _fontsReady.then(() => html2canvas(capDiv, {
         scale: 2, backgroundColor: '#0f1117',
         logging: false, useCORS: true, allowTaint: true,
         width: totalW, height: totalH,
         windowWidth: totalW, windowHeight: totalH,
         scrollX: 0, scrollY: 0,
         ignoreElements: el => el === overlay, // 오버레이 제외
-      }).then(canvas => {
+      })).then(canvas => {
         if (document.body.contains(capDiv)) document.body.removeChild(capDiv);
         document.body.style.minHeight = savedMinH;
         const link = document.createElement('a');
