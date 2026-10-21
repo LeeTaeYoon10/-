@@ -1981,24 +1981,27 @@ function buildTikTokTable(){
 // ── GFA ──────────────────────────────────────────────────────────────────────
 // GFA 전용 정규화: normKeyFull(공백·언더스코어·끝괄호 제거) + 특수문자(+·/·괄호··&- 등) 제거.
 // GFA 그룹명("방수+추석성과")과 카페24 UTM("방수추석성과")의 +·공백 등 표기차 흡수.
-function gfaNorm(s){ return normKeyFull(s).replace(/[+\/().,·&\-\s]/g, ''); }
+// GFA 전용 정규화. normKeyFull은 '끝 괄호 주석'을 통째 제거하는데(메타/구글 편집자표기 대응),
+// GFA는 괄호 안이 '타겟(구매의도 대상: 아웃도어/테니스 등)'이라 제거하면 타겟이 다른 그룹이 같은 키가 됨.
+// → normKeyFull 미사용. NFC+소문자화 후 특수문자·공백·언더스코어만 제거(괄호 안 텍스트는 보존)해
+//   카페24 UTM 키워드와 GFA 그룹명을 타겟까지 1:1 매칭.
+function gfaNorm(s){ return String(s).normalize('NFC').toLowerCase().replace(/[+\/().,·&\-\s_]/g, ''); }
 // 카페24 GFA 키워드에서 매치키 추출. **신형 UTM만 매칭**(2026-10-13 UTM을 GFA 그룹명 형식으로 통일).
-// 신형 = 그룹명 형식 "날짜6자리_테마_타겟_구매의도(...)" = 맨 앞 6자리 날짜 + ccfm 없음 → 그룹키(날짜+테마)와 동일.
+// 신형 = 그룹명 형식 "날짜6자리_테마_타겟_구매의도(...)" = 맨 앞 6자리 날짜 + ccfm 없음.
+// 2026-10-21: 날짜+테마(parts[0]+parts[1])만 쓰던 것을 **전체 키워드(타겟·구매의도 포함)**로 정밀화.
+//   카페24 UTM 키워드가 GFA 그룹명과 타겟까지 1:1 일치(특수문자·공백 차이는 gfaNorm이 흡수)하므로,
+//   테마 단위 비례분배 대신 타겟별 정확 매칭이 됨. (카페24 실측과 그룹 단위까지 일치)
 // 구형(접두_날짜_ccfm_테마_I)은 매칭 제외 — 그룹키와 안 겹치는 고유 키로 격리.
 function gfaDirectKey(keyword){
   const parts = String(keyword).split('_');
   const hasCcfm = parts.some(p => /^ccfm$/i.test(p));
   if(/^\d{6}$/.test(parts[0]) && !hasCcfm && parts.length >= 2){
-    return gfaNorm(parts[0] + parts[1]);
+    return gfaNorm(keyword);
   }
   return '__gfa_legacy__' + gfaNorm(keyword);
 }
-// GFA 그룹명("261005_야외활동가벼움_남3054_구매의도...")에서 매치키 추출
+// GFA 그룹명("261005_야외활동가벼움_남3054_구매의도...")에서 매치키 추출 — 전체 그룹명(타겟 포함).
 function gfaGroupKey(groupName){
-  const parts = String(groupName).split('_');
-  if(/^\d{6}$/.test(parts[0]) && parts.length >= 2){
-    return gfaNorm(parts[0] + parts[1]);
-  }
   return gfaNorm(groupName);
 }
 
