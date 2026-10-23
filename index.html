@@ -2048,9 +2048,14 @@ function parseGFACSV(file){
                 camps[campName].groups[grpKey] = { name: grpName, budget: null, ads: [] };
               }
               // adSet 1개 = ads 1개 (그룹이 leaf). 직접값은 2-pass에서 비례분배 저장.
+              // ROAS/CPA는 GFA전환매출(convSales)·GFA전환수(conv) 기준으로 산출해 ad에 저장 —
+              // 개별 그룹행은 adRowCells가 ad.roas/ad.cpa를 직접 참조하므로(집계행만 aggAds가 계산)
+              // 이게 없으면 그룹행 CPA/ROAS가 '–'로 안 보였음.
               const ad = {
                 name: grpName, cost, clicks, impressions: imp,
                 rev: convSales, conv, atc: 0,
+                roas: cost > 0 ? convSales / cost * 100 : 0,
+                cpa: conv > 0 ? cost / conv : 0,
                 directAmount: 0, directCount: 0, directRoas: 0, directCpa: null, ctr,
               };
               camps[campName].groups[grpKey].ads.push(ad);
