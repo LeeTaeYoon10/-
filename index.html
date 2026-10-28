@@ -8,6 +8,36 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>마케팅 액션 툴</title>
+<!-- ── 자동 버전감지 강제 새로고침 ───────────────────────────────────────────
+     브라우저/GitHub Pages 캐시로 구버전 index.html이 떠서 "GFA 7일 안 보임" 등이
+     반복되던 문제의 근본조치. 캐시방지 메타(위)는 HTTP 헤더(max-age)·bfcache 앞에서
+     무력하므로, 접속 시 서버의 build.txt(최신 버전표식)를 캐시우회로 받아 현재 로드된
+     BUILD와 다르면 캐시버스팅 쿼리(?v=)로 강제 최신 로드. 한 번 이 버전을 받은 뒤부턴
+     새 배포가 나와도 사용자 조작 없이 자동 갱신된다. -->
+<script>
+(function(){
+  var BUILD = "20261028a";   // 배포 때마다 build.txt와 동일하게 갱신
+  function apply(t){
+    t = (t||"").trim();
+    if(!t || t === BUILD) return;
+    try{
+      var u = new URL(location.href);
+      if(u.searchParams.get("v") === t) return;  // 이미 최신쿼리로 왔는데도 구버전=캐시가 끈질김 → 무한루프 방지
+      u.searchParams.set("v", t);
+      location.replace(u.toString());            // 캐시버스팅 쿼리로 강제 최신 로드
+    }catch(e){}
+  }
+  function check(){
+    fetch("build.txt?_=" + Date.now(), {cache:"no-store"})
+      .then(function(r){ return r.ok ? r.text() : null; })
+      .then(function(t){ if(t) apply(t); })
+      .catch(function(){});
+  }
+  check();                                        // 접속 즉시(구버전이면 바로 최신으로 교체)
+  setInterval(check, 3*60*1000);                  // 열어둔 채 새 배포 나와도 3분 내 자동 갱신
+  window.addEventListener("pageshow", function(e){ if(e.persisted) check(); }); // 뒤로가기/탭복원(bfcache) 대응
+})();
+</script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
