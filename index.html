@@ -16,7 +16,7 @@
      새 배포가 나와도 사용자 조작 없이 자동 갱신된다. -->
 <script>
 (function(){
-  var BUILD = "20261028a";   // 배포 때마다 build.txt와 동일하게 갱신
+  var BUILD = "20261029a";   // 배포 때마다 build.txt와 동일하게 갱신
   function apply(t){
     t = (t||"").trim();
     if(!t || t === BUILD) return;
@@ -36,6 +36,8 @@
   check();                                        // 접속 즉시(구버전이면 바로 최신으로 교체)
   setInterval(check, 3*60*1000);                  // 열어둔 채 새 배포 나와도 3분 내 자동 갱신
   window.addEventListener("pageshow", function(e){ if(e.persisted) check(); }); // 뒤로가기/탭복원(bfcache) 대응
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden) check(); }); // 오래 열어둔 탭 다시 볼 때 즉시 최신 확인
+  window.addEventListener("focus", check);        // 창 포커스 복귀 시에도 확인(탭 오래 방치 대응)
 })();
 </script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
