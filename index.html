@@ -16,7 +16,7 @@
      새 배포가 나와도 사용자 조작 없이 자동 갱신된다. -->
 <script>
 (function(){
-  var BUILD = "20261110a";   // 배포 때마다 build.txt와 동일하게 갱신
+  var BUILD = "20261110b";   // 배포 때마다 build.txt와 동일하게 갱신
   function apply(t){
     t = (t||"").trim();
     if(!t || t === BUILD) return;
@@ -2600,7 +2600,7 @@ function autoSave(){
   if(!actionDate||!currentBrand) return;
   const hist=loadHistoryData();
   const _dual = !!(dualMode && parsed7);
-  hist[actionDate]={schemaVersion:SCHEMA_VER,actionDate,periodStart:document.getElementById('period-start').value,periodEnd:document.getElementById('period-end').value,savedAt:new Date().toISOString(),meta:parsed.meta,google:parsed.google,tiktok:parsed.tiktok,dualMode:_dual,meta7:_dual?parsed7.meta:null,google7:_dual?parsed7.google:null,tiktok7:_dual?parsed7.tiktok:null,actions:Object.assign({},actions)};
+  hist[actionDate]={schemaVersion:SCHEMA_VER,actionDate,periodStart:document.getElementById('period-start').value,periodEnd:document.getElementById('period-end').value,savedAt:new Date().toISOString(),meta:parsed.meta,google:parsed.google,tiktok:parsed.tiktok,gfa:parsed.gfa,dualMode:_dual,meta7:_dual?parsed7.meta:null,google7:_dual?parsed7.google:null,tiktok7:_dual?parsed7.tiktok:null,gfa7:_dual?parsed7.gfa:null,actions:Object.assign({},actions)};
   _saveHistData(hist, actionDate);
   if(window.remoteSaveActions) remoteSaveActions(currentBrand, actionDate, actions);  // 클라우드에도 저장(기기 간 공유)
   renderHistoryChips();
@@ -3035,12 +3035,13 @@ function loadHistoryDate(date){
   let rec=hist[date];
   if(!rec) return;
   rec=migrateRecord(rec);
-  if(!currentSession){currentSession={meta:parsed.meta,google:parsed.google,tiktok:parsed.tiktok,parsed7:parsed7,dualMode:dualMode,actions:Object.assign({},actions),actionDate:document.getElementById('action-date').value,periodStart:document.getElementById('period-start').value,periodEnd:document.getElementById('period-end').value};}
+  if(!currentSession){currentSession={meta:parsed.meta,google:parsed.google,tiktok:parsed.tiktok,gfa:parsed.gfa,parsed7:parsed7,dualMode:dualMode,actions:Object.assign({},actions),actionDate:document.getElementById('action-date').value,periodStart:document.getElementById('period-start').value,periodEnd:document.getElementById('period-end').value};}
   try{parsed.meta=rec.meta||null;}catch{parsed.meta=null;}
   try{parsed.google=rec.google||null;}catch{parsed.google=null;}
   try{parsed.tiktok=rec.tiktok||null;}catch{parsed.tiktok=null;}
-  if(rec.dualMode && (rec.meta7||rec.google7||rec.tiktok7)){
-    parsed7={meta:rec.meta7||null,google:rec.google7||null,tiktok:rec.tiktok7||null}; dualMode=true;
+  try{parsed.gfa=rec.gfa||null;}catch{parsed.gfa=null;}
+  if(rec.dualMode && (rec.meta7||rec.google7||rec.tiktok7||rec.gfa7)){
+    parsed7={meta:rec.meta7||null,google:rec.google7||null,tiktok:rec.tiktok7||null,gfa:rec.gfa7||null}; dualMode=true;
   } else { parsed7=null; dualMode=false; }
   Object.keys(actions).forEach(k=>delete actions[k]);
   Object.assign(actions,rec.actions||{});
@@ -3056,7 +3057,7 @@ function loadHistoryDate(date){
 
 function returnToCurrentSession(){
   if(!currentSession) return;
-  parsed.meta=currentSession.meta; parsed.google=currentSession.google; parsed.tiktok=currentSession.tiktok;
+  parsed.meta=currentSession.meta; parsed.google=currentSession.google; parsed.tiktok=currentSession.tiktok; parsed.gfa=currentSession.gfa||null;
   parsed7=currentSession.parsed7||null; dualMode=!!currentSession.dualMode;
   Object.keys(actions).forEach(k=>delete actions[k]);
   Object.assign(actions,currentSession.actions);
