@@ -16,7 +16,7 @@
      새 배포가 나와도 사용자 조작 없이 자동 갱신된다. -->
 <script>
 (function(){
-  var BUILD = "20261124b";   // 배포 때마다 build.txt와 동일하게 갱신
+  var BUILD = "20261124c";   // 배포 때마다 build.txt와 동일하게 갱신
   function apply(t){
     t = (t||"").trim();
     if(!t || t === BUILD) return;
@@ -1502,8 +1502,19 @@ function calculateBudgetSummary() {
     });
   }
 
-  r.all.change = r.meta.change + r.google.change + r.tiktok.change;
-  r.all.total  = r.meta.total  + r.google.total  + r.tiktok.total;
+  r.gfa = { change: 0, total: 0, hasData: false };
+  if (parsed.gfa) {
+    Object.values(parsed.gfa).forEach(camp => {
+      const ck = 'gfa__camp__' + camp.name;
+      if (camp.budget > 0 || actions[ck]?.budgetFrom || actions[ck]?.budgetCur) {
+        const from = curBudget(ck, camp.budget);
+        const to   = actions[ck]?.budgetTo ? parseNum(actions[ck].budgetTo) * 10000 : from;
+        r.gfa.change += to - from; r.gfa.total += to; r.gfa.hasData = true;
+      }
+    });
+  }
+  r.all.change = r.meta.change + r.google.change + r.tiktok.change + r.gfa.change;
+  r.all.total  = r.meta.total  + r.google.total  + r.tiktok.total  + r.gfa.total;
   return r;
 }
 
@@ -1622,21 +1633,23 @@ function computeSummaryMetrics(root,period){
     totalCost+=a.cost;totalRev+=a.rev||0;tkCost+=a.cost;
     const d=dir(a,'tk__ad__'+c.name+'__'+g.name+'__'+a.name);totalDirect+=d;tkDirect+=d;
   })));
+  let gfaCost=0,gfaDirect=0;
   if(root&&root.gfa) Object.values(root.gfa).forEach(c=>Object.values(c.groups).forEach(g=>g.ads.forEach(a=>{
-    totalCost+=a.cost||0;totalRev+=a.rev||0;
-    const d=dir(a,'gfa__grp__'+c.name+'__'+g.name);totalDirect+=d;
+    totalCost+=a.cost||0;totalRev+=a.rev||0;gfaCost+=a.cost||0;
+    const d=dir(a,'gfa__grp__'+c.name+'__'+g.name);totalDirect+=d;gfaDirect+=d;
   })));
-  return {totalCost,totalRev,totalDirect,metaCost,metaDirect,ggCost,ggDirect,tkCost,tkDirect,
+  return {totalCost,totalRev,totalDirect,metaCost,metaDirect,ggCost,ggDirect,tkCost,tkDirect,gfaCost,gfaDirect,
     roas:totalCost>0?totalRev/totalCost*100:0,
     dRoas:totalCost>0?totalDirect/totalCost*100:0,
     metaDRoas:metaCost>0?metaDirect/metaCost*100:0,
     ggDRoas:ggCost>0?ggDirect/ggCost*100:0,
-    tkDRoas:tkCost>0?tkDirect/tkCost*100:0};
+    tkDRoas:tkCost>0?tkDirect/tkCost*100:0,
+    gfaDRoas:gfaCost>0?gfaDirect/gfaCost*100:0};
 }
 function renderSummary(){
   const m3 = computeSummaryMetrics(parsed, dualMode?'3':srvPeriod);
   const m7 = (dualMode && parsed7) ? computeSummaryMetrics(parsed7,'7') : null;
-  const {totalCost,totalRev,totalDirect,metaCost,ggCost,tkCost,roas,dRoas,metaDRoas,ggDRoas,tkDRoas} = m3;
+  const {totalCost,totalRev,totalDirect,metaCost,ggCost,tkCost,gfaCost,roas,dRoas,metaDRoas,ggDRoas,tkDRoas,gfaDRoas} = m3;
 
   // 요약 카드: dualMode면 3일/7일 값을 위아래 2줄로. kind: 'won'|'roas', accent: 강조색 여부
   function sCard(label, key, kind, accent){
@@ -1668,7 +1681,7 @@ function renderSummary(){
     </div>`;
   }
 
-  const hasAnyBudget = bs.meta.hasData || bs.google.hasData || bs.tiktok.hasData;
+  const hasAnyBudget = bs.meta.hasData || bs.google.hasData || bs.tiktok.hasData || bs.gfa.hasData;
   const allCard = hasAnyBudget ? `<div class="s-card" style="border-color:var(--accent)">
     <div class="s-lbl">전체 예산 변경</div>
     <div class="s-val" style="color:${bs.all.change>0?'var(--green)':bs.all.change<0?'var(--red)':'var(--muted)'};font-size:16px;font-weight:800">${bs.all.change===0?'±0':(bs.all.change>0?'+':'')+fmtW(bs.all.change)}</div>
@@ -1683,13 +1696,16 @@ function renderSummary(){
     ${parsed.meta?sCard('메타 광고비','metaCost','won',true):''}
     ${parsed.google?sCard('구글 광고비','ggCost','won',true):''}
     ${parsed.tiktok?sCard('틱톡 광고비','tkCost','won',true):''}
+    ${parsed.gfa?sCard('GFA 광고비','gfaCost','won',true):''}
     ${directRoasCard('메타','metaDRoas',!!parsed.meta)}
     ${directRoasCard('구글','ggDRoas',!!parsed.google)}
     ${directRoasCard('틱톡','tkDRoas',!!parsed.tiktok)}
+    ${directRoasCard('GFA','gfaDRoas',!!parsed.gfa)}
     ${sCard('직접 전환 매출','totalDirect','won',false)}
     ${budgetCard('메타', bs.meta)}
     ${budgetCard('구글', bs.google)}
     ${budgetCard('틱톡', bs.tiktok)}
+    ${budgetCard('GFA', bs.gfa)}
     ${allCard}`;
 }
 
