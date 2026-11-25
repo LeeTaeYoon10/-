@@ -16,7 +16,7 @@
      새 배포가 나와도 사용자 조작 없이 자동 갱신된다. -->
 <script>
 (function(){
-  var BUILD = "20261125a";   // 배포 때마다 build.txt와 동일하게 갱신
+  var BUILD = "20261125b";   // 배포 때마다 build.txt와 동일하게 갱신
   function apply(t){
     t = (t||"").trim();
     if(!t || t === BUILD) return;
@@ -158,6 +158,9 @@ body.brand-granny {
 body.brand-basetune {
   --accent: #7C6AE8; --brand-primary: #7C6AE8; --brand-secondary: #6857d4;
 }
+body.brand-salagris {
+  --accent: #E8845A; --brand-primary: #E8845A; --brand-secondary: #d4703f;
+}
 
 body {
   background: var(--bg); color: var(--text);
@@ -190,13 +193,16 @@ body {
 }
 .brand-card.granny::before { background: radial-gradient(circle at 50% 0%, rgba(76,175,115,0.15), transparent 70%); }
 .brand-card.basetune::before { background: radial-gradient(circle at 50% 0%, rgba(124,106,232,0.15), transparent 70%); }
+.brand-card.salagris::before { background: radial-gradient(circle at 50% 0%, rgba(232,132,90,0.15), transparent 70%); }
 .brand-card:hover { transform: translateY(-4px); }
 .brand-card.granny:hover { border-color: #4CAF73; }
 .brand-card.basetune:hover { border-color: #7C6AE8; }
+.brand-card.salagris:hover { border-color: #E8845A; }
 .brand-card-emoji { font-size: 40px; margin-bottom: 14px; position: relative; }
 .brand-card-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; position: relative; }
 .brand-card.granny .brand-card-name { color: #4CAF73; }
 .brand-card.basetune .brand-card-name { color: #7C6AE8; }
+.brand-card.salagris .brand-card-name { color: #E8845A; }
 .brand-card-sub { font-size: 11px; color: var(--muted); position: relative; }
 
 /* ── Header ───────────────────────── */
@@ -465,6 +471,11 @@ tr.row-ad:hover td.dual-cell .dl7 { background:rgba(245,158,11,0.18); }
       <div class="brand-card-emoji">🎵</div>
       <div class="brand-card-name">베이스튠</div>
       <div class="brand-card-sub">Basetune</div>
+    </div>
+    <div class="brand-card salagris" onclick="selectBrand('salagris')">
+      <div class="brand-card-emoji">🌿</div>
+      <div class="brand-card-name">샐러그리스</div>
+      <div class="brand-card-sub">Salagreece</div>
     </div>
   </div>
 </div>
@@ -773,6 +784,10 @@ const BRAND_CONFIG = {
   },
   basetune: {
     name: '베이스튠', emoji: '🎵', cls: 'brand-basetune',
+    defaults: { roas_danger: 100, roas_warn: 150, cpa_danger: 50000, cpa_good: 35000 }
+  },
+  salagris: {
+    name: '샐러그리스', emoji: '🌿', cls: 'brand-salagris',
     defaults: { roas_danger: 100, roas_warn: 150, cpa_danger: 50000, cpa_good: 35000 }
   }
 };
